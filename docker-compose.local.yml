@@ -1,0 +1,91 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: amber_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PWD}
+    volumes:
+      - amber-mongo-data:/data/db
+
+  amber:
+    image: amber-template-amber:latest
+    container_name: amber_api
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      APP_NAME: ${APP_NAME}
+      APP_URL: ${AMBER_URL}
+      APP_SECRET_KEY: ${APP_SECRET_KEY}
+      APP_SECRET_IV: ${APP_SECRET_IV}
+      ENCRYPT_DATA: "true"
+      CLIENT_URLS: ${CLIENT_URLS}
+      MONGODB_URL: mongodb://${MONGO_USER}:${MONGO_PWD}@mongo:27017/amber?authSource=admin
+      ADMINISTRATOR_EMAIL: ${ADMINISTRATOR_EMAIL}
+      ADMINISTRATOR_PWD: ${ADMINISTRATOR_PWD}
+      AMBER_STUDIO_URL: ${AMBER_STUDIO_URL}
+      AMBER_COLLECT_URL: ${AMBER_COLLECT_URL}
+      AMBER_VISIT_URL: ${AMBER_VISIT_URL}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY}
+      SENDINBLUE_API_KEY: ${SENDINBLUE_API_KEY}
+      FROM_EMAIL: ${FROM_EMAIL}
+      OTP_TIMEOUT: ${OTP_TIMEOUT}
+      CLUSTER_COUNT: ${CLUSTER_COUNT}
+    ports:
+      - "3030:3030"
+
+  studio:
+    build:
+      context: ./amber-studio
+      args:
+        AMBER_URL: ${AMBER_URL}
+        RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+        PATH_PREFIX: /
+    container_name: amber_studio
+    restart: unless-stopped
+    depends_on:
+      - amber
+    environment:
+      AMBER_URL: ${AMBER_URL}
+      RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+    ports:
+      - "8081:80"
+
+  collect:
+    build:
+      context: ./amber-collect
+      args:
+        AMBER_URL: ${AMBER_URL}
+        RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+        PATH_PREFIX: /
+    container_name: amber_collect
+    restart: unless-stopped
+    depends_on:
+      - amber
+    environment:
+      AMBER_URL: ${AMBER_URL}
+      RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+    ports:
+      - "8082:80"
+
+  visit:
+    build:
+      context: ./amber-visit
+      args:
+        AMBER_URL: ${AMBER_URL}
+        RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+        PATH_PREFIX: /
+    container_name: amber_visit
+    restart: unless-stopped
+    depends_on:
+      - amber
+    environment:
+      AMBER_URL: ${AMBER_URL}
+      RECAPTCHA_SITE_KEY: ${RECAPTCHA_SITE_KEY}
+    ports:
+      - "8083:80"
+
+volumes:
+  amber-mongo-data:

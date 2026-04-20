@@ -1,8 +1,32 @@
 services:
+        docker-socket-proxy:
+                image: tecnativa/docker-socket-proxy:latest
+                environment:
+                        - CONTAINERS=1
+                        - SERVICES=1
+                        - TASKS=1
+                        - NETWORKS=1
+                        - EVENTS=1
+                        - PING=1
+                        - VERSION=1
+                        - INFO=1
+                restart: unless-stopped
+                volumes:
+                        - ${DOCKER_SOCK:-/var/run/docker.sock}:/var/run/docker.sock:ro
+        docker-api-rewrite:
+                image: nginx:alpine
+                depends_on:
+                        - docker-socket-proxy
+                restart: unless-stopped
+                volumes:
+                        - ./docker-api-rewrite.conf:/etc/nginx/nginx.conf:ro
         reverse-proxy:
-                image: traefik:v3.2
+                image: traefik:v3.5
+                depends_on:
+                        - docker-api-rewrite
                 command:
                         - "--providers.docker"
+                        - "--providers.docker.endpoint=tcp://docker-api-rewrite:2375"
                         - "--providers.file.directory=/configuration/"
                         - "--entrypoints.web.address=:80"
                         ## uncomment for https support
@@ -13,12 +37,12 @@ services:
                 environment:
                         - SSL_CERT_CRT=${SSL_CERT_CRT}
                         - SSL_CERT_KEY=${SSL_CERT_KEY}
+                        - DOCKER_API_VERSION=1.48
                 ports:
                         - "8888:80"
                         # - "8843:443"
                 restart: unless-stopped
                 volumes:
-                        - /var/run/docker.sock:/var/run/docker.sock:ro
                         - ./traefik.yaml:/configuration/traefik.yml
                         - /etc/ssl:/etc/ssl
         home:
